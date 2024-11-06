@@ -1,0 +1,11 @@
+router ---tarpor--> app.js
+
+route
+app.js---> registerUser(user.routes.js)  --> resisterUser definition( user.controller.js) 
+
+/register diye "ok" lekha to analam, ok aslo hocce kivabe check korbo ? api testing 
+
+Thunder Client (only 30) x
+Postman  v
+router.route("/register").post(registerUser)  
+//http://localhost:8000/api/v1/users/register 
