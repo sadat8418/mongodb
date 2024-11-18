@@ -5,16 +5,16 @@ import {uploadOnCloudinary} from "../utils/cloudinary.js"
 import { ApiResponse } from "../utils/ApiResponse.js"
 import jwt from 'jsonwebtoken'
 import mongoose from "mongoose";
-//method banalam refreshzZZ token er 
 
 
-const generateAccessAndRefereshTokens = async(userId) =>{
+//method banalam Aceess, refreshzZZ token er 
+const generateAccessAndRefereshTokens = async(userId) =>{ //internal, tai asyncHandler lagbe na 
     try {
         const user = await User.findById(userId)
         const accessToken = user.generateAccessToken() //method tai ()
         const refreshToken = user.generateRefreshToken()
 
-        //access toekn to user k die dei, refresh tokwn db te rakhi, jeno user theke 
+        //access token to user k die dei, refresh tokwn DB te user.save kore rakhi 
         user.refreshToken = refreshToken //oobject a value add kore kivabe ? eivabe
         await user.save({ validateBeforeSave: false }) //validation chalale required fied o kick in hoye jabe 
 
@@ -46,7 +46,7 @@ const registerUser = asyncHandler( async (req,res)=>{
     // remove password and refresh token field from response (encrypted .. tao send kroa jabe na )
     // check for user creation
     // return res
-    const {fullName, email, username, password} = req.body // form, json theke nibo
+const {fullName, email, username, password} = req.body // form, json theke nibo
     //console.log("email:", email); //postman a body or params /form-data
                                     // body/raw/json 
 
@@ -75,7 +75,6 @@ if(existedUser){
 
  const avatarLocalPath = req.files?.avatar[0]?.path;     
 //const coverImageLocalPath = req.files?.coverImage[0]?.path;
-//const coverImageLocalPath = req.files?.coverImage[0]?.path;
 //coverIMage na dile error
 
 let coverImageLocalPath;
@@ -96,7 +95,7 @@ if (!avatar){           //avatar required, check na kore db fete jabe
     throw new ApiError(400, "avatar file is required")
 }
 
-//object banao, db te entry koro
+//user registered, object banao, db te entry koro
 const user = await User.create({
     fullName,
     avatar: avatar.url,
@@ -106,7 +105,7 @@ const user = await User.create({
     username: username.toLowerCase() //db te sob lowercase rakhte 
 } )
 const createdUser = await User.findById(user._id).select(   //mongodb creates new _id 
-    "-password -refreshToken"    // minus password, rereshtoekn 
+    "-password -refreshToken"    // .select method e ulta .. minus password, refeshtoekn 
 )  
 if(!createdUser){
     throw new ApiError(500,"Something went wrong while registering the user")
@@ -114,7 +113,7 @@ if(!createdUser){
 // return res 
 //return res.status(201).json({createdUser}) 
 return res.status(201).json(
-    new ApiResponse(200,createdUser, "USer Registered successfully")
+    new ApiResponse(200,createdUser, "User Registered successfully")
 ) 
 
 
@@ -135,30 +134,32 @@ const loginUser = asyncHandler(async (req,res)=>{
         throw new ApiError(400,"username or password is required")
     }
     //registered hoile login korte parbe 
-    //email,username 2tai check
+    //email or username 2tai check query likhlam
     const user = await User.findOne({
         $or: [{username}, {email}]
     })
 
-    if (!user){
+    if (!user){ //query sesh (username, email checking sesh), user paici?
         throw new ApiError(404,"User doesnot exisr")
     }
 
     //isPasswordCorrect user.model.js a ami method banaici
     //User. mongoose er 
-    const isPasswordValid = await user.isPasswordCorrect(password)
-    if (!isPasswordValid){
+    const isPasswordValid = await user.isPasswordCorrect(password) //password req.body theke ja ache  
+    if (!isPasswordValid){ //password valid?
         throw new ApiError(401,"Password Incorrect")
     }
     
-    const {accessToken, refreshToken} = await generateAccessAndRefereshTokens(user._id)
-    //user empty refresh token dibe, 
-    //object theke update kore dao .or.. database query mere dao...
+    const {accessToken, refreshToken} = await generateAccessAndRefereshTokens(user._id) //generate kore dibe 
+    
+    //optional (loggedIn user er unwanted field sorao, samone kauke deyar jonno)
+    //jodio ei user empty refresh token dibe
+    //object theke update kore dao .or.. database query mere dao... we are using B query
     const loggedInUser = await User.findById(user._id).select("-password -refreshToken")
 
 //COOKIES
 const options = {
-    httpOnly: true, //frontend theke modify hobe na , only server
+    httpOnly: true, //frontend theke modify hobe na , only server theke
     secure: true
 }
 return res
@@ -168,8 +169,9 @@ return res
 .json(
     new ApiResponse(
         200, 
-        { /// this.data = data (In Api response)... this{inside bracket} is data
-            user: loggedInUser, accessToken, refreshToken
+        { /// this.data = data (In ApiResponse.js)... {this} is this.data
+            user: loggedInUser, accessToken, refreshToken  //user nije theke accesstoken refreshToekn save korte chasse 
+                                                          //(local storage or mobile app development a)
         },
         "User logged In Successfully"
     )
@@ -179,7 +181,7 @@ return res
 
 })
 ///// LOGOUT >>> 
-//cookies , refresh token out
+//1. cookies out , 2.refresh token out
 const logoutUser = asyncHandler(async(req,res) =>{
     // User.findById , id kothay pabo ? email chabo ?
     //middleware : before going meet me
@@ -211,6 +213,8 @@ return res
 .clearCookie("refreshToken", options)
 .json(new ApiResponse(200,{},"User logged out successfully "))
 })
+
+//accesstoken "refresh" kora hocce
 const refreshAccessToken = asyncHandler(async(req,res)=>{
     const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken //incoming & db te stored refresh token compare
 
@@ -236,7 +240,7 @@ try {
         throw new ApiError(401,"Refresh token is expired or used")
     }
     
-    //sob verification check hoye gese . new generate kore dao
+    //sob verification check hoye gese . new access token generate kore dao
     //cookies
     const options = {
         httpOnly: true,
@@ -244,6 +248,7 @@ try {
     }
     // options likhci ekhon generate 
     const {accessToken, newrefreshToken} = await generateAccessAndRefereshTokens(user._id)
+    
     return res
     .status(200)
     .cookie("accessToken",accessToken,options)

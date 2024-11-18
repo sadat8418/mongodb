@@ -23,9 +23,12 @@ app.use(cookieParser())
 //routers import 
 // icca moto naam tokhon e deya jay jokhon export default hoy 
 import userRouter from './routes/user.routes.js'
+import videoRouter from "./routes/video.routes.js"
 
 //app.get route kaj korbe na , app.use likte hoy ...
 //app.use("/users", userRouter)
 app.use("/api/v1/users", userRouter)
+app.use("/api/v1/videos", videoRouter)
+
 //http://localhost:8000/api/v1/users/register
 export { app }

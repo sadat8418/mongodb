@@ -53,7 +53,7 @@ const userSchema = new Schema(
 )
 
 userSchema.pre("save", async function (next) {
-    if(!this.isModified("password")) return next();
+    if(!this.isModified("password")) return next(); //field modified kina , password modified hoile bcrypt run hobe 
 
     this.password = await bcrypt.hash(this.password, 10)
     next()
@@ -70,7 +70,7 @@ userSchema.methods.isPasswordCorrect = async function(password){
 userSchema.methods.generateAccessToken = function(){
     return jwt.sign(  // access token return //async lage na
         {
-            _id: this._id,
+            _id: this._id,  //normally shudhu Id e pathay
             email: this.email,
             username: this.username,
             fullName: this.fullName

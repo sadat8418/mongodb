@@ -17,9 +17,9 @@ import { verifyJWT } from "../middlewares/auth.middleware.js";
 
 const router = Router()
 router.route("/register").post(
-    upload.fields([//images send korte parbo //upload is a middleware 
+    upload.fields([//images send korte parbo //upload is a middleware ( data niye  jacco, image o niye jao)  
     {
-        name:"avatar",
+        name:"avatar", //frontend ao avatar..
         maxCount: 1
 
     },
@@ -32,9 +32,10 @@ registerUser
 )  ///register hit hoile tokhon  method call korbo, naile kisui korbo na
 
 router.route("/login").post(loginUser)
-//secured routes
-router.route("/logout").post(verifyJWT, logoutUser) // verify korbo, [next] logoutUser run 
-router.route("/refresh-token").post(refreshAccessToken)
+
+//secured routes (login er por routes)
+router.route("/logout").post(verifyJWT, logoutUser) // verify(auth.middleware.js) run, next logoutUser(user3.controller.js) run 
+router.route("/refresh-token").post(refreshAccessToken) //verifyjwt likhi ni, karon controller a verify hocce
 
 router.route("/change-password").post(verifyJWT, changeCurrentPassword)
 
