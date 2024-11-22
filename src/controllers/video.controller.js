@@ -8,20 +8,49 @@ import {uploadOnCloudinary} from "../utils/cloudinary.js"
 
 
 const getAllVideos = asyncHandler(async (req, res) => {
-    const { page = 1, limit = 10, query, sortBy, sortType, userId } = req.query
-    //TODO: get all videos based on query, sort, pagination
+    const {  query, sortBy, sortType, userId } = req.query
+   
+   //page = 1, limit = 10,
+    // const sortCriteria = { [sortField]: parseInt(sortOrder) };
+   const sortCriteria = { [sortBy]: parseInt(sortType) };
+   const page = 1; // Current page number
+   const limit = 10; // Number of documents per page
+
+    console.log(userId, sortBy,sortType, page,query )
+   // console.log(req.user?._id)  //works
+   //userId lagbe na ,,, login acei 
+//TODO: get all videos based on query, sort, pagination
+//req.query : Extra bits at the end of a URL (e.g., form inputs, search bar)
+const video = await Video.aggregate([ 
+    { 
+        $match: {
+            title: { 
+                $regex: query, 
+                $options: "i" } // Case-insensitive search
+          }
+
+},{
+    $sort: sortCriteria
+    
+    },
+    { $skip: (page - 1) * limit }, // Skip documents for previous pages
+    { $limit: limit } // Limit the number of documents to page size
+      
+    
+]);
+return res
+        .status(200)
+        .json(new ApiResponse(200, video, "Account details updated successfully"))
+ 
 })
 
 const publishAVideo = asyncHandler(async (req, res) => {
     const { title, description} = req.body
     // TODO: get video, upload to cloudinary, create video
-   
-    
     //check for images, avatar 
     //req.body te sob data ashe , middleware dici routes a , tai req. onek extra function dibe 
-    
 
-    const videoFileLocalPath = req.files?.videoFile[0]?.path;     
+    const videoFileLocalPath = req.files?.videoFile[0]?.path; //multiple video    
     const thumbnailLocalPath = req.files?.thumbnail[0]?.path;
     //coverIMage na dile error
     
@@ -31,8 +60,8 @@ const publishAVideo = asyncHandler(async (req, res) => {
     if(!thumbnailLocalPath){
         throw new ApiError(400, "thumbnail file is required")
     }
-    
-    //upload to cloudinary , 5mb er video, tai async handler lagaicilam upore ...
+
+    //upload to cloudinary , 5mb er video
     const videoFile = await uploadOnCloudinary(videoFileLocalPath)
     const thumbnail = await uploadOnCloudinary(thumbnailLocalPath)
     /*
@@ -89,7 +118,7 @@ const publishAVideo = asyncHandler(async (req, res) => {
         throw new ApiError(400, "video file is required")
     }
     if (!thumbnail){           //avatar required, check na kore db fete jabe 
-        throw new ApiError(400, "video file is required")
+        throw new ApiError(400, "video thumbnail is required")
     }
 
     //user registered, object banao, db te entry koro
@@ -104,14 +133,13 @@ const video = await Video.create({
 } )
 
 //sob video url postman a dekhabe ..
-const createdVideo = await Video.findById(video._id).select(   //mongodb creates new _id always, even in videos
-    "-password -refreshToken"    // minus password, rereshtoekn 
-)  
+const createdVideo = await Video.findById(video._id)  //mongodb creates new _id always, even in videos
+       
 if(!createdVideo){
-    throw new ApiError(500,"Something went wrong while registering the user")
+    throw new ApiError(500,"Something went wrong while uploading the video")
 }
     return res.status(201).json(
-        new ApiResponse(200,createdVideo, "Video upoaded Successfully")
+        new ApiResponse(200,createdVideo, "Video uploaded Successfully")
     )
 
     
@@ -119,24 +147,148 @@ if(!createdVideo){
 
 const getVideoById = asyncHandler(async (req, res) => {
     const { videoId } = req.params
-    //TODO: get video by id
+    //TODO: get video by id, //find the video database 
+  
+    if(!videoId?.trim()){
+        throw new ApiError(400,"Could not get url (videoId) of video")
+    }
 
-    //database e find
+    //console.log(videoId) 
+    //videoId === req.video?._id
+    const a =  await Video.findById(videoId)
+    return res
+    .status(200)
+    .json(new ApiResponse(200,a,"Got the details of the video"))
 })
 
+
+//text  based data update , multer lage na ..
 const updateVideo = asyncHandler(async (req, res) => {
     const { videoId } = req.params
-    //TODO: update video details like title, description, thumbnail
+    //TODO: get video by id, //find the video database 
+  
+    if(!videoId?.trim()){
+        throw new ApiError(400,"Could not get url (videoId) of video")
+    }
+    
+    const { title,description } = req.body
+    const thumbnailLocalPath = req.file?.path //req.file?.path //local hdd theke nilam 
+//TODO: delete old image - assignment
 
+//console.log(req.params.file)
+    if(!thumbnailLocalPath){
+        throw new ApiError(400, "Thumbnail file is missing")
+    }
+    const thumbnail = await uploadOnCloudinary(thumbnailLocalPath)
+    if(!thumbnail.url){
+        throw new ApiError(400,"Error while uploading on thumbnail")
+    }
+   
+    
+    // update video details like title, description, thumbnail
+    // Find and update the video
+
+    const video = await Video.findByIdAndUpdate(
+        videoId, //req.video?._id kaj korbe na 
+        {
+            $set: { 
+                title: title,
+                description: description,
+                thumbnail: thumbnail.url
+                
+            },
+        },
+        { new: true } // Return the updated document
+    );
+    if (!video) {
+        return res.status(404).json({ 
+            status: 404, 
+            message: "Video not found." 
+        });
+    }
+        return res
+        .status(200)
+        .json(new ApiResponse(200, video, "Video details updated successfully"))
+        
+
+})
+//file update alada korei rakhte hoy , multer lage
+//file(image) update : multer, logged in user
+
+//(dont)  updateVideoThumbnail
+const updateVideoThumbnail = asyncHandler(async(req,res)=>{
+    
+    const thumbnailLocalPath = req.file?.path //req.file?.path //local hdd theke nilam 
+//TODO: delete old image - assignment
+
+//console.log(req.params.file)
+    if(!thumbnailLocalPath){
+        throw new ApiError(400, "Avatar file is missing") //if this comes, postman somossa
+    }
+    const thumbnail = await uploadOnCloudinary(thumbnailLocalPath)
+    if(!thumbnail.url){
+        throw new ApiError(400,"Error while uploading on thumbnail")
+    }
+    const { videoId } = req.params
+    
+    const video = await Video.findByIdAndUpdate( //reference niye  response 
+        videoId,
+        {
+            $set:{
+                thumbnail: thumbnail.url
+            } 
+        },
+        {new:true}
+    )
+
+    return res
+    .status(200)
+    .json(new ApiResponse( 200, video, "Thumbnail Image Updated Successfully"))
+    
 })
 
 const deleteVideo = asyncHandler(async (req, res) => {
     const { videoId } = req.params
     //TODO: delete video
+    if(!videoId?.trim()){
+        throw new ApiError(400,"Could not get url (videoId) of video")
+    }
+
+    //console.log(videoId) 
+    //videoId === req.video?._id
+    const a =  await Video.findOneAndDelete(videoId, {
+        projection: { name: 1, email: 1 },
+        
+      },{new:true})
+    return res
+    .status(200)
+    .json(new ApiResponse(200,a,"Deleted video"))
 })
 
 const togglePublishStatus = asyncHandler(async (req, res) => {
     const { videoId } = req.params
+//kon stage  a ace ? published hoile, unpublished 
+const video1 = await Video.findById(videoId)
+const isPublished = video1.isPublished
+console.log(isPublished)
+
+video1.isPublished = !isPublished
+
+/*
+const video = await Video.findByIdAndUpdate({
+    videoId,
+    $set:{
+        isPublished: !isPublished
+    } 
+},
+{new:true}
+)
+*/
+return res
+.status(200)
+.json(new ApiResponse( 200, video1, "IsPublished Toggled"))
+
+
 })
 
 export {
@@ -144,6 +296,7 @@ export {
     publishAVideo,
     getVideoById,
     updateVideo,
+    updateVideoThumbnail,
     deleteVideo,
     togglePublishStatus
 }

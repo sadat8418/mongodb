@@ -190,8 +190,9 @@ await User.findByIdAndUpdate( //findBy id dile user ano, refresh token delete ko
 req.user._id,
 {
     //$set:{ //ki ki update korte hobe , bolo
-      //  refreshToken: undefined
-   //}
+      //  refreshToken: undefined}
+   
+
    $unset:{ 
        refreshToken: 1  //removes refreshtoken
    }
@@ -219,7 +220,7 @@ const refreshAccessToken = asyncHandler(async(req,res)=>{
     const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken //incoming & db te stored refresh token compare
 
     if (!incomingRefreshToken){
-        throw new ApiError(401,"Unauthorizzed Requff0est") 
+        throw new ApiError(401,"Unauthorizzed Request") 
     }
 
 try {
@@ -278,8 +279,7 @@ const changeCurrentPassword = asyncHandler(async(req,res) => {
         throw new ApiError(400,"Invalid old Password")
     }
     user.password = newPassword
-    //pre jeno validate na kore from user.model.js
-    await user.save({validateBeforeSave: false})
+    await user.save({validateBeforeSave: false}) //pre jeno validate na kore from user.model.js
     
     return res
     .status(200)
@@ -301,10 +301,10 @@ const updateAccountDetails = asyncHandler(async(req,res)=>{
     if(!fullName || !email){ //2tai update
         throw new ApiError(400,"All fields are required")
     }
-    const user = User.findByIdAndUpdate(
+    const user = await User.findByIdAndUpdate(
         req.user?._id,
         {
-            $set: {fullName, //Value sets can be attached to parameters of a concurrent program, whereas Lookups can't.
+            $set: {fullName:fullName, //Value sets can be attached to parameters of a concurrent program, whereas Lookups can't.
                 email: email
             }   // mongoose er set, count, aggragate[js]
         },
@@ -317,8 +317,9 @@ const updateAccountDetails = asyncHandler(async(req,res)=>{
     })
 //file(image) update : multer, logged in user
 const updateUserAvatar = asyncHandler(async(req,res)=>{
-    const avatarLocalPath = req.files?.path
-
+    
+    const avatarLocalPath = req.file?.path //local hdd theke nilam 
+//TODO: delete old image - assignment
     if(!avatarLocalPath){
         throw new ApiError(400, "Avatar file is missing")
     }
@@ -348,7 +349,7 @@ const updateUserAvatar = asyncHandler(async(req,res)=>{
 const getUserChannelProfile = asyncHandler(async(req,res)=>{
 //channel a jete "url" lagbe.. req.params theke pabo url
 const {username} = req.params //destructure the username
-if(!username?.trim()){
+if(!username?.trim()){   //trim korlam emni, whitespace dur korte  
     throw new ApiError(400,"username is missing")
 }
 // User.find({username}) nibo, then aggregation ...use match
